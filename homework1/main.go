@@ -28,9 +28,11 @@ func testFunction(x int) int {
 	builder := ssa.NewBuilder()
 
 	// Строим SSA из исходного кода
-	graph, err := builder.ParseAndBuildSSA(source, "testFunction")
+	fn, err := builder.ParseAndBuildSSA(source, "testFunction")
 	if err != nil {
 		log.Fatalf("Ошибка построения SSA: %v", err)
 	}
-	fmt.Printf("CFG построен для функции с %d блоками\n", len(graph.Blocks))
+	fmt.Printf("CFG построен для функции с %d блоками\n", len(fn.Blocks))
+
+	fmt.Println(ssa.SprintSSA(fn))
 }
