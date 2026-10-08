@@ -2,8 +2,11 @@
 package translator
 
 import (
-	"github.com/ebukreev/go-z3/z3"
+	"fmt"
+
 	"symbolic-execution-course/internal/symbolic"
+
+	"github.com/ebukreev/go-z3/z3"
 )
 
 // Z3Translator транслирует символьные выражения в Z3 формулы
@@ -49,62 +52,98 @@ func (zt *Z3Translator) TranslateExpression(expr symbolic.SymbolicExpression) (i
 
 // VisitVariable транслирует символьную переменную в Z3
 func (zt *Z3Translator) VisitVariable(expr *symbolic.SymbolicVariable) interface{} {
-	// TODO: Реализовать
 	// Проверить, есть ли переменная в кэше
 	// Если нет - создать новую Z3 переменную соответствующего типа
 	// Добавить в кэш и вернуть
 
-	// Подсказки:
-	// - Используйте zt.ctx.IntConst(name) для int переменных
-	// - Используйте zt.ctx.BoolConst(name) для bool переменных
-	// - Храните переменные в zt.vars для повторного использования
+	if v, ok := zt.vars[expr.Name]; ok {
+		return v
+	} else {
+		switch expr.Type() {
+		case symbolic.IntType:
+			{
+				zt.vars[expr.Name] = zt.ctx.IntConst(expr.Name)
+			}
+		case symbolic.BoolType:
+			{
+				zt.vars[expr.Name] = zt.ctx.BoolConst(expr.Name)
+			}
+		default:
+			{
+				panic("Неизвестный тип")
+			}
+		}
 
-	panic("не реализовано")
+		return zt.vars[expr.Name]
+	}
 }
 
 // VisitIntConstant транслирует целочисленную константу в Z3
 func (zt *Z3Translator) VisitIntConstant(expr *symbolic.IntConstant) interface{} {
-	// TODO: Реализовать
-	// Создать Z3 константу с помощью zt.ctx.FromBigInt или аналогичного метода
-
-	panic("не реализовано")
+	return zt.ctx.FromInt(expr.Value, zt.ctx.IntSort())
 }
 
 // VisitBoolConstant транслирует булеву константу в Z3
 func (zt *Z3Translator) VisitBoolConstant(expr *symbolic.BoolConstant) interface{} {
-	// TODO: Реализовать
-	// Использовать zt.ctx.FromBool для создания Z3 булевой константы
-
-	panic("не реализовано")
+	return zt.ctx.FromBool(expr.Value)
 }
 
 // VisitBinaryOperation транслирует бинарную операцию в Z3
 func (zt *Z3Translator) VisitBinaryOperation(expr *symbolic.BinaryOperation) interface{} {
-	// TODO: Реализовать
-	// 1. Транслировать левый и правый операнды
-	// 2. В зависимости от оператора создать соответствующую Z3 операцию
+	le, _ := zt.TranslateExpression(expr.Left)
+	ri, _ := zt.TranslateExpression(expr.Right)
 
-	// Подсказки по операциям в Z3:
-	// - Арифметические: left.Add(right), left.Sub(right), left.Mul(right), left.Div(right)
-	// - Сравнения: left.Eq(right), left.LT(right), left.LE(right), etc.
-	// - Приводите типы: left.(z3.Int), right.(z3.Int) для int операций
+	left := le.(z3.Int)
+	right := ri.(z3.Int)
 
-	panic("не реализовано")
+	switch expr.Operator {
+	case symbolic.ADD:
+		return left.Add(right)
+	case symbolic.SUB:
+		return left.Sub(right)
+	case symbolic.MUL:
+		return left.Mul(right)
+	case symbolic.DIV:
+		return left.Div(right)
+	case symbolic.MOD:
+		return left.Mod(right)
+	case symbolic.EQ:
+		return left.Eq(right)
+	case symbolic.NE:
+		return left.NE(right)
+	case symbolic.LT:
+		return left.LT(right)
+	case symbolic.LE:
+		return left.LE(right)
+	case symbolic.GT:
+		return left.GT(right)
+	case symbolic.GE:
+		return left.GE(right)
+	}
+
+	panic("")
 }
 
 // VisitLogicalOperation транслирует логическую операцию в Z3
 func (zt *Z3Translator) VisitLogicalOperation(expr *symbolic.LogicalOperation) interface{} {
-	// TODO: Реализовать
-	// 1. Транслировать все операнды
-	// 2. Применить соответствующую логическую операцию
+	var operands []z3.Bool
+	for _, subexpr := range expr.Operands {
+		operand, _ := zt.TranslateExpression(subexpr)
+		operands = append(operands, operand.(z3.Bool))
+	}
 
-	// Подсказки:
-	// - AND: zt.ctx.And(operands...)
-	// - OR: zt.ctx.Or(operands...)
-	// - NOT: operand.Not() (для единственного операнда)
-	// - IMPLIES: antecedent.Implies(consequent)
+	switch expr.Operator {
+	case symbolic.AND:
+		return operands[0].And(operands[1:]...)
+	case symbolic.OR:
+		return operands[0].Or(operands[1:]...)
+	case symbolic.NOT:
+		return operands[0].Not()
+	case symbolic.IMPLIES:
+		return operands[0].Implies(operands[1])
+	}
 
-	panic("не реализовано")
+	panic(fmt.Sprintf("неподдерживаемый логический оператор: %s", expr.Operator))
 }
 
 // Вспомогательные методы
